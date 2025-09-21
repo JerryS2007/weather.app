@@ -13,13 +13,42 @@ export default function Weather() {
     const [loading, setLoading] = useState(true);
     const [lastUpdated, setLastUpdated] = useState(new Date());
     const [showRadar, setShowRadar] = useState(false);
+    // EAS alert state
+    const [easAlert, setEasAlert] = useState(null);
+    const SLIDELL_COORDS = { lat: 30.2752, lon: -89.7814 };
 
     useEffect(() => {
         loadWeatherData();
+        fetchEASAlerts();
         // Refresh every 10 minutes
-        const interval = setInterval(loadWeatherData, 600000);
+        const interval = setInterval(() => {
+            loadWeatherData();
+            fetchEASAlerts();
+        }, 600000);
         return () => clearInterval(interval);
     }, []);
+
+    // Fetch EAS alerts for Louisiana and filter for Slidell
+    const fetchEASAlerts = async () => {
+        try {
+            const response = await fetch('https://api.weather.gov/alerts/active?area=LA');
+            const data = await response.json();
+            // Filter for alerts affecting Slidell (by areaDesc or geometry)
+            const relevant = data.features?.filter(alert => {
+                const area = alert.properties.areaDesc || "";
+                // Check if Slidell or St. Tammany is mentioned
+                return area.includes("Slidell") || area.includes("St. Tammany");
+            });
+            if (relevant && relevant.length > 0) {
+                // Use the first relevant alert for display
+                setEasAlert(relevant[0].properties);
+            } else {
+                setEasAlert(null);
+            }
+        } catch (error) {
+            setEasAlert(null);
+        }
+    };
 
     const loadWeatherData = async () => {
         setLoading(true);
